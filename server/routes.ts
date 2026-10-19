@@ -4,7 +4,32 @@ import { walkthroughFormSchema, contactFormSchema } from "@shared/schema";
 import { fromError } from "zod-validation-error";
 import { Resend } from "resend";
 
-const resend = new Resend(process.env.RESEND_API_KEY);
+const resendApiKey = process.env.RESEND_API_KEY;
+const resend = resendApiKey ? new Resend(resendApiKey) : null;
+const LEAD_EMAIL = process.env.LEAD_EMAIL || "info@sparklepros.us";
+const FROM_EMAIL =
+  process.env.FROM_EMAIL || "Sparkle Pros Website <onboarding@resend.dev>";
+
+if (!resend) {
+  console.warn(
+    "RESEND_API_KEY is not set; form submissions will be logged but no email will be sent.",
+  );
+}
+
+async function sendLeadEmail(opts: {
+  subject: string;
+  html: string;
+  replyTo: string;
+}) {
+  if (!resend) return;
+  await resend.emails.send({
+    from: FROM_EMAIL,
+    to: LEAD_EMAIL,
+    subject: opts.subject,
+    html: opts.html,
+    replyTo: opts.replyTo,
+  });
+}
 
 export async function registerRoutes(
   httpServer: Server,
@@ -57,9 +82,7 @@ export async function registerRoutes(
       `;
 
       try {
-        await resend.emails.send({
-          from: "Sparkle Pros Website <onboarding@resend.dev>",
-          to: "leads@claraavyon.resend.app",
+        await sendLeadEmail({
           subject: `New Walkthrough Request: ${formData.companyName}`,
           html: emailHtml,
           replyTo: formData.email,
@@ -119,9 +142,7 @@ export async function registerRoutes(
       `;
 
       try {
-        await resend.emails.send({
-          from: "Sparkle Pros Website <onboarding@resend.dev>",
-          to: "leads@claraavyon.resend.app",
+        await sendLeadEmail({
           subject: `New Contact Inquiry: ${formData.fullName}`,
           html: emailHtml,
           replyTo: formData.email,
